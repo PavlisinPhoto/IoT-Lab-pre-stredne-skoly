@@ -1,0 +1,171 @@
+version: "3"
+
+services:
+
+  traefik:
+    image: traefik:2.9
+    # Enables the web UI and tells Traefik to listen to docker
+    command:
+      # Configuration
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+
+      # Entrypoints
+      - "--entrypoints.mqtt.address=:1883"
+      #- "--entrypoints.websocket.address=:9001"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+    restart: always
+    ports:
+      # The HTTP and HTTPS port
+      - 80:80
+      - 443:443
+      # The Web UI (enabled by --api.insecure=true)
+      - 8080:8080
+      # MQTT
+      - 1883:1883
+      #- 9001:9001
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    labels:
+      - homepage.group=IoT Gateway Core
+      - homepage.name=Traefik Dashboard
+      - homepage.icon=traefik.png
+      - homepage.href=http://${HOSTIP:-localhost}:8080/
+      - homepage.description=Traefik dashboard
+
+
+#  portainer:
+ #   image: portainer/portainer-ce
+  #  ports:
+  #    # - 8000:8000
+  #    - 9443:9443
+  #  restart: always
+  #  volumes:
+  #    - /var/run/docker.sock:/var/run/docker.sock
+  #    - portainer_data:/data
+  #  labels:
+  #    homepage.group: IoT Gateway Core
+  #    homepage.name: Portainer
+  #    homepage.icon: portainer.png
+  #    homepage.href: https://${HOSTIP:-localhost}:9443/
+  #    homepage.description: Docker management
+
+      #traefik.enable: true
+      #traefik.http.services.portainer.loadbalancer.server.port: 9443
+
+      ## middleware
+      #traefik.http.middlewares.portainer-rewrite.replacepathregex.regex: "^/portainer/(.*)"
+      #traefik.http.middlewares.portainer-rewrite.replacepathregex.replacement: "/$$1"
+
+      ## routers
+      #traefik.http.routers.portainer.entrypoints: web
+      #traefik.http.routers.portainer.rule: PathPrefix(`/portainer/`)
+      #traefik.http.routers.portainer.middlewares: "portainer-rewrite"
+
+
+  homepage:
+    image: ghcr.io/benphelps/homepage:latest
+    volumes:
+      - ./configs/homepage:/app/config
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: always
+    labels:
+      traefik.enable: true
+      traefik.http.routers.homepage.rule: PathPrefix(`/`)
+      traefik.http.routers.homepage.entrypoints: web
+      traefik.http.services.homepage.loadbalancer.server.port: 3000
+
+
+  mosquitto:
+    image: eclipse-mosquitto
+    restart: always
+    expose:
+      - 1883
+      #- 9001
+    volumes:
+      #- ${PWD}/mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      #- ${PWD}/mosquitto/config/mosquitto.passwd:/mosquitto/config/mosquitto.passwd
+      - ./configs/mosquitto:/mosquitto/config
+    labels:
+      traefik.enable: true
+      traefik.tcp.services.mosquitto.loadbalancer.server.port: 1883
+      #traefik.tcp.services.mosquittows.loadbalancer.server.port: 9001
+      traefik.tcp.routers.mosquitto.entrypoints: mqtt
+      #traefik.tcp.routers.mosquitto.entrypoints: mqttws
+      traefik.tcp.routers.mosquitto.service: mosquitto
+      traefik.tcp.routers.mosquitto.rule: HostSNI(`*`)
+      homepage.group: IoT Gateway Core
+      homepage.name: Mosquitto
+      homepage.icon: mqtt.png
+      homepage.description: Local MQTT Broker
+
+
+  telegraf:
+    image: telegraf
+    restart: always
+    volumes:
+      - ./configs/telegraf:/etc/telegraf:ro
+    labels:
+      homepage.group: IoT Gateway Core
+      homepage.name: Telegraf
+      homepage.icon: telegraf.png
+      homepage.description: System Metrics
+    environment:
+      HOSTIP: ${HOSTIP:-localhost}
+      ROOM: ${IOTGW_ROOM:-home}
+      DEPARTMENT: ${IOTGW_DEPARTMENT:-none}
+
+
+  theengs:
+    image: theengs/gateway
+    restart: always
+#    network_mode: host
+    environment:
+      MQTT_HOST: mosquitto
+#       MQTT_USERNAME: <username>
+#       MQTT_PASSWORD: <password>
+      MQTT_PUB_TOPIC: gateway/ble
+#       MQTT_SUB_TOPIC: home/TheengsGateway/commands
+#       PUBLISH_ALL: true
+#       TIME_BETWEEN: 60
+#       SCAN_TIME: 60
+#       LOG_LEVEL: DEBUG
+      DISCOVERY_TOPIC: gateway/homeassistant/sensor
+#       DISCOVERY_DEVICE_NAME: TheengsGateway
+#       DISCOVERY_FILTER: "[IBEACON,GAEN,MS-CDP]"
+      SCANNING_MODE: active
+      ADAPTER: ${IOTGW_BLE_ADAPTER:-hci0}
+    volumes:
+      - /var/run/dbus:/var/run/dbus
+    labels:
+      homepage.group: IoT Gateway Core
+      homepage.name: Theengs Gateway
+      homepage.icon: https://github.com/namakanyden/Open-IoT-Gateway/raw/main/icons/theengs.png
+      homepage.description: BLE2MQTT Gateway
+
+
+  chrony:
+    image: cturra/ntp
+    restart: always
+    ports:
+      - 123:123/udp
+    environment:
+      NTP_SERVERS: ${IOTGW_NTP_SERVERS:-time.cloudflare.com}
+      LOG_LEVEL: 0
+    labels:
+      homepage.group: IoT Gateway Core
+      homepage.name: Chrony
+      homepage.icon: https://github.com/namakanyden/Open-IoT-Gateway/raw/main/icons/chrony.png
+      homepage.description: NTP Server
+
+
+volumes:
+  portainer_data:
+
+networks:
+  # all containers will be by default connected to network iotgw
+  default:
+    name: iotgw
+    external: true

@@ -1,0 +1,40 @@
+version: "3"
+
+services:
+
+  nodered:
+    image: nodered/node-red
+    restart: always
+    ports:
+    - 1880:1880
+    volumes:
+    - nodered_data:/data
+    labels:
+      # homepage setup
+      homepage.group: Services
+      homepage.name: Node-RED
+      homepage.icon: nodered.png
+      homepage.href: http://${HOSTIP:-localhost}/nodered/
+      homepage.description: Node-RED
+
+      # traefik setup
+      traefik.enable: true
+      traefik.http.services.nodered.loadbalancer.server.port: 1880
+
+      # middleware
+      traefik.http.middlewares.nodered-rewrite.replacepathregex.regex: "^/nodered/(.*)"
+      traefik.http.middlewares.nodered-rewrite.replacepathregex.replacement: "/$$1"
+
+      # routers
+      traefik.http.routers.nodered.entrypoints: web
+      traefik.http.routers.nodered.rule: PathPrefix(`/nodered/`)
+      traefik.http.routers.nodered.middlewares: "nodered-rewrite"
+    networks:
+      - iotgw
+
+volumes:
+  nodered_data:
+
+networks:
+  iotgw:
+    external: true
