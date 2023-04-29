@@ -1,3 +1,3 @@
-# Open-IoT-Gateway
+# IoT Lab pre stredné školy
 
-Open IoT Gateway for your projects.
+Projekt k mojej bakalárskej práci.
