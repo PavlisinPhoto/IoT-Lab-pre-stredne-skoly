@@ -5,7 +5,7 @@
       "certValidation": true,
       "clientId": "mqtt-explorer-c01eb9da",
       "id": "mqtt.eclipse.org",
-      "name": "IoT Gateway",
+      "name": "IoT Lab",
       "encryption": false,
       "subscriptions": [
         {
