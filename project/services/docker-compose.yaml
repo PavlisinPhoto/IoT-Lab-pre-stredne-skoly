@@ -30,11 +30,11 @@ services:
       traefik.http.routers.nodered.rule: PathPrefix(`/nodered/`)
       traefik.http.routers.nodered.middlewares: "nodered-rewrite"
     networks:
-      - iotgw
+      - iotlab
 
 volumes:
   nodered_data:
 
 networks:
-  iotgw:
+  iotlab:
     external: true
