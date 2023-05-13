@@ -29,8 +29,8 @@ services:
       traefik.http.routers.mqttex.rule: PathPrefix(`/mqttexplorer/`)
       traefik.http.routers.mqttex.middlewares: "mqttex-rewrite"
     networks:
-      - iotgw
+      - iotlab
 
 networks:
-  iotgw:
+  iotlab:
     external: true
